@@ -1,0 +1,81 @@
+#!/usr/bin/env python
+# (c) 2019 Thomas Deutschmann <whissi@gentoo.org>
+# Distributed under the terms of the GNU General Public License v2
+
+from __future__ import unicode_literals
+from __future__ import print_function
+
+import sys
+
+import portage.proxy.lazyimport
+import portage.proxy as proxy
+proxy.lazyimport.lazyimport(globals(),
+	'_emerge.RootConfig:RootConfig',
+	'portage.package.ebuild.config:best_from_dict,' + \
+		'config',
+	'portage.package.ebuild._config.LocationsManager:LocationsManager',
+	'portage.package.ebuild._config.LicenseManager:LicenseManager',
+	'portage.repository.config:load_repository_config',
+)
+
+def main():
+	if (len(sys.argv) < 2):
+		eroot = '/'
+	else:
+		eroot = sys.argv[1]
+
+	settings = config(config_root=None, target_root=eroot)
+
+	locations_manager = LocationsManager(config_root=None,
+		config_profile_path=None,
+		eprefix=None,
+		local_config=True,
+		target_root=eroot)
+
+	locations_manager.set_port_dirs(settings.get("PORTDIR"),
+		settings.get("PORTDIR_OVERLAY"))
+
+	abs_user_config = locations_manager.abs_user_config
+
+	license_manager = LicenseManager(locations_manager.profile_locations,
+		abs_user_config,
+		user_config=True)
+
+	license_manager.set_accept_license_str(settings.get("ACCEPT_LICENSE"))
+
+	vardb = portage.db[eroot]["vartree"].dbapi
+
+	metakeys = list(vardb._aux_cache_keys)
+
+	packages_with_missing_licenses = {}
+	for cpv in vardb.cpv_all():
+		metadata = dict(zip(metakeys, vardb.aux_get(cpv, metakeys, myrepo=None)))
+
+		if "?" in metadata["LICENSE"]:
+			# Should never be the case because we work on vartree only
+			settings.setcpv(cpv, mydb=metadata)
+			metadata["USE"] = settings["PORTAGE_USE"]
+		else:
+			metadata["USE"] = ""
+
+		missing_licenses = license_manager.getMissingLicenses(cpv,
+			metadata["USE"],
+			metadata["LICENSE"],
+			metadata["SLOT"],
+			metadata.get('repository'))
+
+		if missing_licenses:
+			pkg = vardb._pkg_str(cpv, None)
+			packages_with_missing_licenses.setdefault(pkg.cp, []).extend(missing_licenses)
+
+	if not packages_with_missing_licenses:
+		print("# Licenses for all installed packages are already accepted!")
+	else:
+		print("# The following package(s) are using licenses which aren't covered by")
+		print("# ACCEPT_LICENSE=\"{}\" setting nor have entries in the package.license file:".format(settings.get("ACCEPT_LICENSE")))
+		for package, missing_licenses in packages_with_missing_licenses.items():
+			missing_licenses = sorted(set(missing_licenses))
+			print('{} {}'.format(package, ' '.join(missing_licenses)))
+
+if __name__ == '__main__':
+	main()
