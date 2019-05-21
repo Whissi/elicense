@@ -29,6 +29,13 @@ def main(argv):
 
 	settings = config(config_root=None, target_root=eroot)
 
+	if opts.debug:
+		print('> EROOT set to "{}" ...'.format(eroot), file=sys.stderr)
+		print('> Will scan for installed packages which are not' \
+			' covered by ACCEPT_LICENSE="{}" nor have entries' \
+			' in the package.license file ...' \
+			.format(settings.get("ACCEPT_LICENSE")), file=sys.stderr)
+
 	locations_manager = LocationsManager(config_root=None,
 		config_profile_path=None,
 		eprefix=None,
@@ -78,6 +85,12 @@ def main(argv):
 			return 1
 
 		if missing_licenses:
+			if opts.debug:
+				print('> Package ={}:{}::{} is using non-accepted license(s) {}'.format(cpv,
+					metadata["SLOT"],
+					metadata.get('repository'),
+					', '.join('"%s"' % license for license in missing_licenses)), file=sys.stderr)
+
 			pkg = vardb._pkg_str(cpv, None)
 			packages_with_missing_licenses.setdefault(pkg.cp, []).extend(missing_licenses)
 
@@ -100,6 +113,9 @@ def process_args(argv):
 
 	parser.add_argument('-V', '--version', action='version', version="{} {}".format(MY_PN, MY_PV),
 		help='show program version and exit')
+
+	parser.add_argument('--debug', action='store_true', default=False,
+		help='print debug messages to stderr')
 
 	parser.add_argument('--eroot', action='store', default='/',
 		help='Set EROOT.')
