@@ -46,7 +46,11 @@ def main(argv):
 
 	license_manager.set_accept_license_str(settings.get("ACCEPT_LICENSE"))
 
-	vardb = portage.db[eroot]["vartree"].dbapi
+	try:
+		vardb = portage.db[eroot]["vartree"].dbapi
+	except KeyError:
+		print('EROOT "{}" is invalid.'.format(eroot), file=sys.stderr)
+		return 1
 
 	metakeys = list(vardb._aux_cache_keys)
 
