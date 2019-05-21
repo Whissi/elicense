@@ -5,7 +5,11 @@
 from __future__ import unicode_literals
 from __future__ import print_function
 
+MY_PN = "elicense"
+MY_PV = "git.unknown"
+
 import sys
+import argparse
 
 import portage.proxy.lazyimport
 import portage.proxy as proxy
@@ -18,11 +22,10 @@ proxy.lazyimport.lazyimport(globals(),
 	'portage.repository.config:load_repository_config',
 )
 
-def main():
-	if (len(sys.argv) < 2):
-		eroot = '/'
-	else:
-		eroot = sys.argv[1]
+def main(argv):
+	opts = process_args(argv)
+
+	eroot=opts.eroot
 
 	settings = config(config_root=None, target_root=eroot)
 
@@ -77,5 +80,21 @@ def main():
 			missing_licenses = sorted(set(missing_licenses))
 			print('{} {}'.format(package, ' '.join(missing_licenses)))
 
+def process_args(argv):
+	"""Option parsing via argc"""
+	parser = argparse.ArgumentParser(prog=MY_PN,
+		formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+		description='Finds installed packages in Gentoo' \
+			' with non-accepted license(s).' \
+			' Output can be used for package.license file.')
+
+	parser.add_argument('-V', '--version', action='version', version="{} {}".format(MY_PN, MY_PV),
+		help='show program version and exit')
+
+	parser.add_argument('--eroot', action='store', default='/',
+		help='Set EROOT.')
+
+	return parser.parse_args(args=argv)
+
 if __name__ == '__main__':
-	main()
+	sys.exit(main(sys.argv[1:]))
