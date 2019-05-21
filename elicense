@@ -56,20 +56,26 @@ def main(argv):
 
 	packages_with_missing_licenses = {}
 	for cpv in vardb.cpv_all():
-		metadata = dict(zip(metakeys, vardb.aux_get(cpv, metakeys, myrepo=None)))
+		try:
+			metadata = dict(zip(metakeys, vardb.aux_get(cpv, metakeys, myrepo=None)))
 
-		if "?" in metadata["LICENSE"]:
-			# Should never be the case because we work on vartree only
-			settings.setcpv(cpv, mydb=metadata)
-			metadata["USE"] = settings["PORTAGE_USE"]
-		else:
-			metadata["USE"] = ""
+			if "?" in metadata["LICENSE"]:
+				# Should never be the case because we work on vartree only
+				settings.setcpv(cpv, mydb=metadata)
+				metadata["USE"] = settings["PORTAGE_USE"]
+			else:
+				metadata["USE"] = ""
 
-		missing_licenses = license_manager.getMissingLicenses(cpv,
-			metadata["USE"],
-			metadata["LICENSE"],
-			metadata["SLOT"],
-			metadata.get('repository'))
+			missing_licenses = license_manager.getMissingLicenses(cpv,
+				metadata["USE"],
+				metadata["LICENSE"],
+				metadata["SLOT"],
+				metadata.get('repository'))
+		except:
+			print('Package DB entry for "{}" seems to be' \
+				' broken. Try to reinstall that' \
+				' package before calling {} again!'.format(cpv, MY_PN), file=sys.stderr)
+			return 1
 
 		if missing_licenses:
 			pkg = vardb._pkg_str(cpv, None)
