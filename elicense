@@ -62,7 +62,7 @@ def main(argv):
 	metakeys = list(vardb._aux_cache_keys)
 
 	packages_with_missing_licenses = {}
-	for cpv in vardb.cpv_all():
+	for cpv in sorted(vardb.cpv_all()):
 		try:
 			metadata = dict(zip(metakeys, vardb.aux_get(cpv, metakeys, myrepo=None)))
 
